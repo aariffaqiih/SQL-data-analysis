@@ -52,3 +52,81 @@
 		SELECT ROUND(AVG(DATEDIFF(o.shippedDate, o.requiredDate))) AS avg_delay
 		FROM orders o
 		WHERE o.shippedDate > o.requiredDate;
+		
+-- 6. Hitung total keuntungan kotor (gross profit) per productLine.
+--    Rumus: SUM(orderdetails.quantityOrdered * (orderdetails.priceEach - products.buyPrice)).
+--    Tujuan bisnis: mengidentifikasi lini produk mana yang paling menguntungkan.
+
+		SELECT
+			p.productLine,
+			ROUND(SUM(od.quantityOrdered * (od.priceEach - p.buyPrice))) AS gross_profit
+		FROM orderdetails od
+		JOIN products p
+			ON od.productCode = p.productCode
+		GROUP BY p.productLine
+		ORDER BY gross_profit DESC;
+
+-- 7. Tampilkan 5 negara dengan total revenue penjualan terbesar.
+--    Revenue = SUM(orderdetails.quantityOrdered * orderdetails.priceEach).
+--    Tujuan bisnis: menganalisis performa pasar berdasarkan wilayah negara.
+
+		SELECT
+			c.country,
+			ROUND(SUM(od.quantityOrdered * od.priceEach), 2) AS revenue
+		FROM orderdetails od
+		JOIN orders o
+			ON od.orderNumber = o.orderNumber
+		JOIN customers c
+			ON o.customerNumber = c.customerNumber
+		GROUP BY c.country
+		ORDER BY revenue DESC
+		LIMIT 5;
+
+-- 8. Hitung rata-rata nilai pembayaran (payments.amount) yang dilakukan oleh customer
+--    berdasarkan jobTitle sales representative mereka.
+--    Tujuan bisnis: mengukur efektivitas masing-masing posisi sales dalam menghasilkan pembayaran.
+
+		SELECT
+			e.jobTitle,
+    		ROUND(AVG(p.amount), 2) AS avg_payment
+		FROM payments p
+		JOIN customers c
+			ON p.customerNumber = c.customerNumber
+		JOIN employees e
+			ON c.salesRepEmployeeNumber = e.employeeNumber
+		GROUP BY e.jobTitle
+		ORDER BY avg_payment DESC;
+
+-- 9. Hitung jumlah customer baru per tahun berdasarkan tahun pertama kali mereka melakukan pembayaran.
+--    Tujuan bisnis: melihat tren pertumbuhan jumlah customer dari waktu ke waktu.
+		
+		WITH first_payment AS (
+			SELECT
+				c.customerNumber,
+        		MIN(p.paymentDate) AS first_payment_date
+    		FROM payments p
+    		JOIN customers c
+				ON p.customerNumber = c.customerNumber
+			GROUP BY c.customerNumber
+		)
+
+		SELECT
+			YEAR(first_payment_date) AS first_year,
+			COUNT(*) AS new_customers
+		FROM first_payment
+		GROUP BY YEAR(first_payment_date)
+		ORDER BY first_year;
+
+-- 10. Cari produk dengan frekuensi penjualan terbanyak (paling sering muncul di orderdetails).
+--     Tujuan bisnis: mengidentifikasi produk terlaris untuk strategi persediaan dan promosi.
+
+		SELECT
+			p.productLine,
+			p.productName,
+			SUM(od.quantityOrdered) AS total_quantity
+		FROM orderdetails od
+		JOIN products p
+			ON od.productCode = p.productCode
+		GROUP BY p.productLine, p.productName
+		ORDER BY total_quantity DESC
+		LIMIT 1;
